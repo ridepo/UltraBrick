@@ -1,0 +1,286 @@
+# Copyright (C) <2024>  <Riccardo De Ponti>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import time
+import chess
+
+
+class Engine:
+    def __init__(self):
+        self.name = "UltraBrick 0.33"  # Movetime
+        self.author = "Riccardo De Ponti"
+        self.board = chess.Board()
+        self.central_squares = [chess.E4, chess.E5, chess.D4, chess.D5]
+        self.player = chess.WHITE
+        self.nodes = 0
+        self.start_time = 0
+        self.stop_time = 0
+
+    def set_fen(self, fen_string):
+        self.board.set_fen(fen_string)
+
+    @staticmethod
+    def position_eval(self):
+        if self.board.is_stalemate():  # TODO or self.board.can_claim_draw():
+            return ["cp", 0]
+        if self.board.is_checkmate():
+            if self.board.turn is self.player:
+                return ["mate", -1]
+            else:
+                return ["mate", 1]
+
+        value = 0
+        color = self.player
+        value = value + len(self.board.pieces(chess.PAWN, color)) * 100
+        value = value + len(self.board.pieces(chess.KNIGHT, color)) * 290
+        value = value + len(self.board.pieces(chess.BISHOP, color)) * 300
+        value = value + len(self.board.pieces(chess.ROOK, color)) * 500
+        value = value + len(self.board.pieces(chess.QUEEN, color)) * 900
+        for square in self.central_squares:
+            if self.board.is_attacked_by(color, square):
+                value += 1
+
+        color = not self.player
+        value = value - len(self.board.pieces(chess.PAWN, color)) * 100
+        value = value - len(self.board.pieces(chess.KNIGHT, color)) * 290
+        value = value - len(self.board.pieces(chess.BISHOP, color)) * 300
+        value = value - len(self.board.pieces(chess.ROOK, color)) * 500
+        value = value - len(self.board.pieces(chess.QUEEN, color)) * 900
+        for square in self.central_squares:
+            if self.board.is_attacked_by(color, square):
+                value -= 1
+
+        return ["cp", int(value)]
+
+    @staticmethod
+    def is_better_eval(eval_1, eval_2):  # Returns True is the first eval is better, False otherwise (even if equal)
+        if eval_1 == eval_2:
+            return False
+
+        e_list = [eval_1, eval_2]
+        positive_infinites_list = []
+        positive_mates_list = []
+        cp_list = []
+        negative_mates_list = []
+        negative_infinites_list = []
+
+        for e in e_list:
+            if e[0] == "cp":
+                cp_list.append(e)
+            if e[0] == "mate" and e[1] > 0:
+                positive_mates_list.append(e)
+            if e[0] == "mate" and e[1] < 0:
+                negative_mates_list.append(e)
+            if e[0] == "inf" and e[1] > 0:
+                positive_infinites_list.append(e)
+            if e[0] == "inf" and e[1] < 0:
+                negative_infinites_list.append(e)
+
+        positive_infinites_list.sort(reverse=True, key=lambda x: x[1])
+        positive_mates_list.sort(reverse=False, key=lambda x: x[1])
+        cp_list.sort(reverse=True, key=lambda x: x[1])
+        negative_mates_list.sort(reverse=False, key=lambda x: x[1])
+        negative_infinites_list.sort(reverse=True, key=lambda x: x[1])
+
+        e_list = positive_infinites_list + positive_mates_list + cp_list + negative_mates_list + negative_infinites_list
+        if eval_1 == e_list[0]:
+            return True
+        else:
+            return False
+
+    def max_eval(self, eval_1, eval_2):
+        if self.is_better_eval(eval_1, eval_2):
+            return eval_1
+        else:
+            return eval_2
+
+    def min_eval(self, eval_1, eval_2):
+        if self.is_better_eval(eval_1, eval_2):
+            return eval_2
+        else:
+            return eval_1
+
+    def is_worse_or_equal_eval(self, eval_1, eval_2):
+        return not self.is_better_eval(eval_1, eval_2)
+
+    def minmax(self, maximizing, depth, alpha, beta):
+        if depth == 1 or self.board.legal_moves.count() == 0 or (self.stop_time != 0 and time.perf_counter_ns() >= self.stop_time):  # TODO does zero moves belong here ?
+            self.nodes += 1
+            return self.position_eval(self)
+        elif maximizing is True:
+            max_eval = ["mate", -1]
+            for eval_move in self.board.legal_moves:
+                self.board.push(eval_move)
+                temp_eval = self.minmax(False, depth - 1, alpha, beta)
+                self.board.pop()
+                if temp_eval == ["mate", 1]:
+                    return temp_eval
+                max_eval = self.max_eval(max_eval, temp_eval)
+                alpha = self.max_eval(alpha, max_eval)
+                if self.is_worse_or_equal_eval(beta, alpha):
+                    break
+            if max_eval[0] == "mate" and max_eval[1] < 0:
+                max_eval[1] -= 1
+            self.nodes += 1
+            return max_eval
+        else:
+            min_eval = ["mate", 1]
+            for eval_move in self.board.legal_moves:
+                self.board.push(eval_move)
+                temp_eval = self.minmax(True, depth - 1, alpha, beta)
+                self.board.pop()
+                if temp_eval == ["mate", -1]:
+                    return temp_eval
+                min_eval = self.min_eval(min_eval, temp_eval)
+                beta = self.min_eval(beta, min_eval)
+                if self.is_worse_or_equal_eval(beta, alpha):
+                    break
+            if min_eval[0] == "mate" and min_eval[1] > 0:
+                min_eval[1] += 1
+            self.nodes += 1
+            return min_eval
+
+    @staticmethod
+    def sort_moves(m_list):
+        cp_list = []
+        positive_mates_list = []
+        negative_mates_list = []
+
+        for m in m_list:
+            if m[1][0] == "cp":
+                cp_list.append(m)
+            if m[1][0] == "mate" and m[1][1] > 0:
+                positive_mates_list.append(m)
+            if m[1][0] == "mate" and m[1][1] < 0:
+                negative_mates_list.append(m)
+
+        positive_mates_list.sort(reverse=False, key=lambda x: x[1][1])
+        cp_list.sort(reverse=True, key=lambda x: x[1][1])
+        negative_mates_list.sort(reverse=False, key=lambda x: x[1][1])
+
+        return positive_mates_list + cp_list + negative_mates_list
+
+    def minmax_root(self, movetime, white_time, black_time):
+        self.start_time = time.perf_counter_ns()
+        self.nodes = 0
+        beta = ["inf", 1]
+        best_eval = ["mate", -1]
+        depth = 1
+
+        if self.board.legal_moves.count() == 0:
+            return "(none)"
+
+        if self.board.turn is chess.WHITE:
+            self.player = chess.WHITE
+        else:
+            self.player = chess.BLACK
+
+        # According to UCI definitions engine is always maximising, no matter if white or black
+
+        # Populate a list of list with legal moves and temporary evaluations
+        moves_list = []
+        for append_move in self.board.legal_moves:
+            moves_list.append([append_move, ["cp", 0]])
+
+        # Set stop time for evaluation
+        if movetime != 0:
+            self.stop_time = self.start_time + movetime * 980000
+        elif self.board.turn == chess.WHITE:
+            if white_time == 0:
+                self.stop_time = 0
+            else:
+                self.stop_time = self.start_time + white_time * 66666
+        else:
+            if black_time == 0:
+                self.stop_time = 0
+            else:
+                self.stop_time = self.start_time + black_time * 66666
+
+        # Search at increasing depth
+
+        while self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
+            alpha = ["inf", -1]
+            for i in range(len(moves_list)):
+                if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
+                    self.board.push(moves_list[i][0])
+                    print(f"info depth {depth} currmove {moves_list[i][0]} currmovenumber {i + 1}")
+                    moves_list[i][1] = self.minmax(False, depth, alpha, beta)
+                    self.board.pop()
+                    if moves_list[i][1] == ["mate", 1]:
+                        self.nodes += 1
+                        print(f"info depth {depth} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {moves_list[i][1][0]} {moves_list[i][1][1]} pv {moves_list[i][0]}", flush=True)
+                        print(f"info score {moves_list[i][1][0]} {moves_list[i][1][1]}  depth {depth}", flush=True)
+                        return moves_list[0][0]
+                    alpha = self.max_eval(alpha, moves_list[i][1])
+                    if self.is_worse_or_equal_eval(beta, alpha):
+                        break
+            if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time or depth == 1:
+                moves_list = self.sort_moves(moves_list)
+                best_eval = moves_list[0][1]
+                print(f"info depth {depth} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {best_eval[0]} {best_eval[1]} pv {moves_list[0][0]}", flush=True)
+                depth += 1
+        self.nodes += 1
+        print(f"info depth {depth - 1} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} time {((time.perf_counter_ns() - self.start_time)/1000000000)} score {best_eval[0]} {best_eval[1]} pv {moves_list[0][0]}", flush=True)
+        print(f"info score {best_eval[0]} {best_eval[1]} depth {depth - 1}", flush=True)
+        return moves_list[0][0]
+
+
+engine = Engine()
+
+while True:
+    command_string = input()
+
+    command = command_string.split()
+    if len(command) == 0:
+        continue
+
+    if command[0] == "uci":
+        print(f"id name {engine.name}")
+        print(f"id author {engine.author}")
+        print("uciok")
+
+    elif command[0] == "isready":
+        print("readyok")
+
+    elif command[0] == "ucinewgame":
+        engine.board.reset()
+
+    elif command[0] == "quit":
+        quit()
+
+    elif command[0] == "position":
+        if command[1] == "fen":
+            engine.set_fen(' '.join(command[2:]))
+        elif command[1] == "startpos":
+            engine.board.reset()
+            if len(command) > 2:
+                if command[2] == "moves":
+                    engine.board.reset()
+                    for move in command[3:]:
+                        engine.board.push_uci(move)
+
+    elif command[0] == "go":
+        movetime = 0
+        wtime = 0
+        btime = 0
+        if len(command) > 1:
+            if command[1] == "movetime":
+                movetime = int(command[2])
+        if len(command) > 3:
+            if command[1] == "wtime":
+                wtime = int(command[2])
+            if command[3] == "btime":
+                btime = int(command[4])
+        print(f"bestmove {engine.minmax_root(movetime, wtime, btime)}")
