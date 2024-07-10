@@ -65,7 +65,16 @@ class Engine:
         return ["cp", int(value)]
 
     @staticmethod
-    def is_better_eval(eval_1, eval_2):  # Returns True is the first eval is better, False otherwise (even if equal)
+    def is_better_eval(eval_1, eval_2):  # Returns True is the first eval is better, False otherwise.
+
+        # Special case 1: if both evaluations are expressed in centipawns, return True if the first one is higher, false otherwise.
+        if eval_1[0] == "cp" == eval_2[0]:
+            if eval_1[1] > eval_2[1]:
+                return True
+            else:
+                return False
+
+        # Special case 2: if the evaluations are identical, return False.
         if eval_1 == eval_2:
             return False
 
@@ -76,23 +85,30 @@ class Engine:
         negative_mates_list = []
         negative_infinites_list = []
 
+        ''' There are 5 kinds of evaluations, from better (for the maximising algorythm) to worse:
+        1. Positive infinities (used only as a worst case while minimising).
+        2. Positive mates (expressed in moves, not in plies), which mean that the engine is winning. Lover scores are better (mating in 1 is better than mating in 2).
+        3. Centipawns. Higher is better (the engine has more pieces or they are in a better position).
+        4. Negative mates (expressed in moves, not in plies), which mean that the engine is losing. Lover scores are better (getting mated in -2 moves is better than getting mated in -1).
+        5. Negative infinities (used only as a worst case while maximising).
+        '''
         for e in e_list:
-            if e[0] == "cp":
-                cp_list.append(e)
-            if e[0] == "mate" and e[1] > 0:
-                positive_mates_list.append(e)
-            if e[0] == "mate" and e[1] < 0:
-                negative_mates_list.append(e)
             if e[0] == "inf" and e[1] > 0:
                 positive_infinites_list.append(e)
+            if e[0] == "mate" and e[1] > 0:
+                positive_mates_list.append(e)
+            if e[0] == "cp":
+                cp_list.append(e)
+            if e[0] == "mate" and e[1] < 0:
+                negative_mates_list.append(e)
             if e[0] == "inf" and e[1] < 0:
                 negative_infinites_list.append(e)
 
-        positive_infinites_list.sort(reverse=True, key=lambda x: x[1])
+        # There is no need to sort positive infinities because we only use ["inf", 1].
         positive_mates_list.sort(reverse=False, key=lambda x: x[1])
         cp_list.sort(reverse=True, key=lambda x: x[1])
         negative_mates_list.sort(reverse=False, key=lambda x: x[1])
-        negative_infinites_list.sort(reverse=True, key=lambda x: x[1])
+        # There is no need to sort negative infinities because we only use ["inf", -1].
 
         e_list = positive_infinites_list + positive_mates_list + cp_list + negative_mates_list + negative_infinites_list
         if eval_1 == e_list[0]:
