@@ -256,7 +256,7 @@ class Engine:
                 print(f"info depth {depth} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {best_eval[0]} {best_eval[1]} pv {moves_list[0][0]}", flush=True)
                 depth += 1
         self.nodes += 1
-        print(f"info depth {depth - 1} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} time {((time.perf_counter_ns() - self.start_time)/1000000000)} score {best_eval[0]} {best_eval[1]} pv {moves_list[0][0]}", flush=True)
+        print(f"info depth {depth - 1} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {best_eval[0]} {best_eval[1]} pv {moves_list[0][0]}", flush=True)
         print(f"info score {best_eval[0]} {best_eval[1]} depth {depth - 1}", flush=True)
         return moves_list[0][0]
 
