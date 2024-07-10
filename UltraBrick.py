@@ -19,7 +19,7 @@ import chess
 
 class Engine:
     def __init__(self):
-        self.name = "UltraBrick 0.33"  # Movetime
+        self.name = "UltraBrick 0.33"
         self.author = "Riccardo De Ponti"
         self.board = chess.Board()
         self.central_squares = [chess.E4, chess.E5, chess.D4, chess.D5]
@@ -67,7 +67,8 @@ class Engine:
     @staticmethod
     def is_better_eval(eval_1, eval_2):  # Returns True is the first eval is better, False otherwise.
 
-        # Special case 1: if both evaluations are expressed in centipawns, return True if the first one is higher, false otherwise.
+        """ Special case 1: if both evaluations are expressed in centipawns, return True if the first one is higher,
+        false otherwise. """
         if eval_1[0] == "cp" == eval_2[0]:
             if eval_1[1] > eval_2[1]:
                 return True
@@ -85,13 +86,15 @@ class Engine:
         negative_mates_list = []
         negative_infinites_list = []
 
-        ''' There are 5 kinds of evaluations, from better (for the maximising algorythm) to worse:
-        1. Positive infinities (used only as a worst case while minimising).
-        2. Positive mates (expressed in moves, not in plies), which mean that the engine is winning. Lover scores are better (mating in 1 is better than mating in 2).
-        3. Centipawns. Higher is better (the engine has more pieces or they are in a better position).
-        4. Negative mates (expressed in moves, not in plies), which mean that the engine is losing. Lover scores are better (getting mated in -2 moves is better than getting mated in -1).
-        5. Negative infinities (used only as a worst case while maximising).
-        '''
+        """There are 5 kinds of evaluations, from better (for the maximising algorythm) to worse: 
+        1. Positive infinities (used only as a worst case while minimising). 
+        2. Positive mates (expressed in moves, not in plies), which mean that the engine is winning. Lover scores are 
+        better (mating in 1 is better than mating in 2). 
+        3. Centipawns. Higher is better (the engine has more pieces or they are in a better position). 
+        4. Negative mates (expressed in moves, not in plies), which mean that the engine is losing. Lover scores are 
+        better (getting mated in -2 moves is better than getting mated in -1). 
+        5. Negative infinities (used only as a 
+        worst case while maximising)."""
         for e in e_list:
             if e[0] == "inf" and e[1] > 0:
                 positive_infinites_list.append(e)
@@ -131,6 +134,10 @@ class Engine:
     def is_worse_or_equal_eval(self, eval_1, eval_2):
         return not self.is_better_eval(eval_1, eval_2)
 
+    '''I use time.perf_counter_ns() instead of time.time_ns() because in some environments time.time_ns() does not 
+    update reliably, and the program crashes with "divide by zero" while calculating 
+    ((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time)). 
+    '''
     def minmax(self, maximizing, depth, alpha, beta):
         if depth == 1 or self.board.legal_moves.count() == 0 or (self.stop_time != 0 and time.perf_counter_ns() >= self.stop_time):  # TODO does zero moves belong here ?
             self.nodes += 1
@@ -188,7 +195,7 @@ class Engine:
 
         return positive_mates_list + cp_list + negative_mates_list
 
-    def minmax_root(self, movetime, white_time, black_time):
+    def minmax_root(self, move_time, white_time, black_time):
         self.start_time = time.perf_counter_ns()
         self.nodes = 0
         beta = ["inf", 1]
@@ -210,9 +217,9 @@ class Engine:
         for append_move in self.board.legal_moves:
             moves_list.append([append_move, ["cp", 0]])
 
-        # Set stop time for evaluation
-        if movetime != 0:
-            self.stop_time = self.start_time + movetime * 980000
+        # Set stop time for search
+        if move_time != 0:
+            self.stop_time = self.start_time + move_time * 980000
         elif self.board.turn == chess.WHITE:
             if white_time == 0:
                 self.stop_time = 0
@@ -224,8 +231,7 @@ class Engine:
             else:
                 self.stop_time = self.start_time + black_time * 66666
 
-        # Search at increasing depth
-
+        # Iterate search at increasing depth until time runs out.
         while self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
             alpha = ["inf", -1]
             for i in range(len(moves_list)):
@@ -242,6 +248,8 @@ class Engine:
                     alpha = self.max_eval(alpha, moves_list[i][1])
                     if self.is_worse_or_equal_eval(beta, alpha):
                         break
+            '''The engine only updates the list of best move when a depth level is completed. The only exception is if 
+            it didn't finish the first depth level: it means ir is very low on time and it does the best it can'''
             if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time or depth == 1:
                 moves_list = self.sort_moves(moves_list)
                 best_eval = moves_list[0][1]
@@ -287,7 +295,7 @@ while True:
                     for move in command[3:]:
                         engine.board.push_uci(move)
 
-    elif command[0] == "go":
+    elif command[0] == "go":  # TODO: command parsing needs to be redone
         movetime = 0
         wtime = 0
         btime = 0
