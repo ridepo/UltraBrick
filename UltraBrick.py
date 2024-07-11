@@ -149,6 +149,7 @@ class Engine:
                 temp_eval = self.minmax(False, depth - 1, alpha, beta)
                 self.board.pop()
                 if temp_eval == ["mate", 1]:
+                    self.nodes += 1
                     return temp_eval
                 max_eval = self.max_eval(max_eval, temp_eval)
                 alpha = self.max_eval(alpha, max_eval)
@@ -165,6 +166,7 @@ class Engine:
                 temp_eval = self.minmax(True, depth - 1, alpha, beta)
                 self.board.pop()
                 if temp_eval == ["mate", -1]:
+                    self.nodes += 1
                     return temp_eval
                 min_eval = self.min_eval(min_eval, temp_eval)
                 beta = self.min_eval(beta, min_eval)
@@ -244,12 +246,12 @@ class Engine:
                         self.nodes += 1
                         print(f"info depth {depth} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {moves_list[i][1][0]} {moves_list[i][1][1]} pv {moves_list[i][0]}", flush=True)
                         print(f"info score {moves_list[i][1][0]} {moves_list[i][1][1]}  depth {depth}", flush=True)
-                        return moves_list[0][0]
-                    alpha = self.max_eval(alpha, moves_list[i][1])
-                    if self.is_worse_or_equal_eval(beta, alpha):
-                        break
+                        return moves_list[i][0]
+                alpha = self.max_eval(alpha, moves_list[i][1])
+                if self.is_worse_or_equal_eval(beta, alpha):
+                    break
             '''The engine only updates the list of best move when a depth level is completed. The only exception is if 
-            it didn't finish the first depth level: it means ir is very low on time and it does the best it can'''
+            it didn't finish the first depth level: it means it is very low on time and it uses what it has'''
             if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time or depth == 1:
                 moves_list = self.sort_moves(moves_list)
                 best_eval = moves_list[0][1]
