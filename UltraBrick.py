@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright (C) <2024>  <Riccardo De Ponti>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -68,14 +69,16 @@ class Engine:
     def is_better_eval(eval_1, eval_2):  # Returns True is the first eval is better, False otherwise.
 
         """ Special case 1: if both evaluations are expressed in centipawns, return True if the first one is higher,
-        false otherwise. """
+        false otherwise.
+        """
         if eval_1[0] == "cp" == eval_2[0]:
             if eval_1[1] > eval_2[1]:
                 return True
             else:
                 return False
 
-        # Special case 2: if the evaluations are identical, return False.
+        """ Special case 2: if the evaluations are identical, return False.
+        """
         if eval_1 == eval_2:
             return False
 
@@ -86,15 +89,15 @@ class Engine:
         negative_mates_list = []
         negative_infinites_list = []
 
-        """There are 5 kinds of evaluations, from better (for the maximising algorythm) to worse: 
+        """There are 5 kinds of evaluations, from better (for the maximising player) to worse: 
         1. Positive infinities (used only as a worst case while minimising). 
-        2. Positive mates (expressed in moves, not in plies), which mean that the engine is winning. Lover scores are 
-        better (mating in 1 is better than mating in 2). 
+        2. Positive mates (expressed in moves, not in plies) mean that the engine is winning. Lover scores are better 
+        (mating in 1 is better than mating in 2). 
         3. Centipawns. Higher is better (the engine has more pieces or they are in a better position). 
-        4. Negative mates (expressed in moves, not in plies), which mean that the engine is losing. Lover scores are 
-        better (getting mated in -2 moves is better than getting mated in -1). 
-        5. Negative infinities (used only as a 
-        worst case while maximising)."""
+        4. Negative mates (expressed in moves, not in plies) mean that the engine is losing. Lover scores are better
+        (getting mated in -2 moves is better than getting mated in -1). 
+        5. Negative infinities (used only as a worst case while maximising).
+        """
         for e in e_list:
             if e[0] == "inf" and e[1] > 0:
                 positive_infinites_list.append(e)
@@ -134,12 +137,12 @@ class Engine:
     def is_worse_or_equal_eval(self, eval_1, eval_2):
         return not self.is_better_eval(eval_1, eval_2)
 
-    '''I use time.perf_counter_ns() instead of time.time_ns() because in some environments time.time_ns() does not 
+    """I use time.perf_counter_ns() instead of time.time_ns() because in some environments time.time_ns() does not 
     update reliably, and the program crashes with "divide by zero" while calculating 
     ((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time)). 
-    '''
+    """
     def minmax(self, maximizing, depth, alpha, beta):
-        if depth == 1 or self.board.legal_moves.count() == 0 or (self.stop_time != 0 and time.perf_counter_ns() >= self.stop_time):  # TODO does zero moves belong here ?
+        if depth == 1 or self.board.legal_moves.count() == 0 or (self.stop_time != 0 and time.perf_counter_ns() >= self.stop_time):
             self.nodes += 1
             return self.position_eval(self)
         elif maximizing is True:
@@ -200,29 +203,22 @@ class Engine:
     def minmax_root(self, move_time, white_time, black_time):
         self.start_time = time.perf_counter_ns()
         self.nodes = 0
+        best_move = ["(none)", ["mate", -1]]
         beta = ["inf", 1]
-        best_eval = ["mate", -1]
         depth = 1
 
         if self.board.legal_moves.count() == 0:
-            return "(none)"
+            return best_move[0]
 
         if self.board.turn is chess.WHITE:
             self.player = chess.WHITE
         else:
             self.player = chess.BLACK
 
-        # According to UCI definitions engine is always maximising, no matter if white or black
-
-        # Populate a list of list with legal moves and temporary evaluations
-        moves_list = []
-        for append_move in self.board.legal_moves:
-            moves_list.append([append_move, ["cp", 0]])
-
         # Set stop time for search
         if move_time != 0:
             self.stop_time = self.start_time + move_time * 980000
-        elif self.board.turn == chess.WHITE:
+        elif self.player == chess.WHITE:
             if white_time == 0:
                 self.stop_time = 0
             else:
@@ -233,9 +229,15 @@ class Engine:
             else:
                 self.stop_time = self.start_time + black_time * 66666
 
+        # Populate a list of list with legal moves and temporary evaluations
+        moves_list = []
+        for append_move in self.board.legal_moves:
+            moves_list.append([append_move, ["cp", 0]])
+
+        # According to UCI definitions engine is always maximising, no matter if white or black
         # Iterate search at increasing depth until time runs out.
         while self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
-            alpha = ["inf", -1]
+            alpha = ["inf", -1]  # TODO Check if it must be reset here
             for i in range(len(moves_list)):
                 if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
                     self.board.push(moves_list[i][0])
@@ -245,22 +247,22 @@ class Engine:
                     if moves_list[i][1] == ["mate", 1]:
                         self.nodes += 1
                         print(f"info depth {depth} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {moves_list[i][1][0]} {moves_list[i][1][1]} pv {moves_list[i][0]}", flush=True)
-                        print(f"info score {moves_list[i][1][0]} {moves_list[i][1][1]}  depth {depth}", flush=True)
+                        print(f"info score {moves_list[i][1][0]} {moves_list[i][1][1]} depth {depth}", flush=True)
                         return moves_list[i][0]
                 alpha = self.max_eval(alpha, moves_list[i][1])
                 if self.is_worse_or_equal_eval(beta, alpha):
                     break
-            '''The engine only updates the list of best move when a depth level is completed. The only exception is if 
-            it didn't finish the first depth level: it means it is very low on time and it uses what it has'''
+            """The engine only updates the list of best move when a depth level is completed. The only exception is if 
+            it didn't finish the first depth level: it means it is very low on time and it uses what it has"""
             if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time or depth == 1:
                 moves_list = self.sort_moves(moves_list)
-                best_eval = moves_list[0][1]
-                print(f"info depth {depth} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {best_eval[0]} {best_eval[1]} pv {moves_list[0][0]}", flush=True)
+                best_move = moves_list[0]
+                print(f"info depth {depth} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {best_move[1][0]} {best_move[1][1]} pv {best_move[0]}", flush=True)
                 depth += 1
         self.nodes += 1
-        print(f"info depth {depth - 1} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {best_eval[0]} {best_eval[1]} pv {moves_list[0][0]}", flush=True)
-        print(f"info score {best_eval[0]} {best_eval[1]} depth {depth - 1}", flush=True)
-        return moves_list[0][0]
+        print(f"info depth {depth - 1} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {best_move[1][0]} {best_move[1][1]} pv {best_move[0]}", flush=True)
+        print(f"info score score {best_move[1][0]} {best_move[1][1]} depth {depth - 1}", flush=True)
+        return best_move[0]
 
 
 engine = Engine()
