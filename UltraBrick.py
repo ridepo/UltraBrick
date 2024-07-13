@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright (C) <2024>  <Riccardo De Ponti>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,7 +20,7 @@ import chess
 
 class Engine:
     def __init__(self):
-        self.name = "UltraBrick 0.33"
+        self.name = "UltraBrick"
         self.author = "Riccardo De Ponti"
         self.board = chess.Board()
         self.central_squares = [chess.E4, chess.E5, chess.D4, chess.D5]
@@ -75,7 +76,8 @@ class Engine:
             else:
                 return False
 
-        # Special case 2: if the evaluations are identical, return False.
+        """ Special case 2: if the evaluations are identical, return False.
+        """
         if eval_1 == eval_2:
             return False
 
@@ -86,15 +88,14 @@ class Engine:
         negative_mates_list = []
         negative_infinites_list = []
 
-        """There are 5 kinds of evaluations, from better (for the maximising algorythm) to worse: 
+        """ There are 5 kinds of evaluations, from better (for the maximising algorythm) to worse: 
         1. Positive infinities (used only as a worst case while minimising). 
         2. Positive mates (expressed in moves, not in plies), which mean that the engine is winning. Lover scores are 
         better (mating in 1 is better than mating in 2). 
         3. Centipawns. Higher is better (the engine has more pieces or they are in a better position). 
         4. Negative mates (expressed in moves, not in plies), which mean that the engine is losing. Lover scores are 
         better (getting mated in -2 moves is better than getting mated in -1). 
-        5. Negative infinities (used only as a 
-        worst case while maximising)."""
+        5. Negative infinities (used only as a worst case while maximising)."""
         for e in e_list:
             if e[0] == "inf" and e[1] > 0:
                 positive_infinites_list.append(e)
@@ -134,12 +135,12 @@ class Engine:
     def is_worse_or_equal_eval(self, eval_1, eval_2):
         return not self.is_better_eval(eval_1, eval_2)
 
-    '''I use time.perf_counter_ns() instead of time.time_ns() because in some environments time.time_ns() does not 
+    """ I use time.perf_counter_ns() instead of time.time_ns() because in some environments time.time_ns() does not 
     update reliably, and the program crashes with "divide by zero" while calculating 
     ((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time)). 
-    '''
+    """
     def minmax(self, maximizing, depth, alpha, beta):
-        if depth == 1 or self.board.legal_moves.count() == 0 or (self.stop_time != 0 and time.perf_counter_ns() >= self.stop_time):  # TODO does zero moves belong here ?
+        if depth == 1 or self.board.legal_moves.count() == 0 or (self.stop_time != 0 and time.perf_counter_ns() >= self.stop_time):
             self.nodes += 1
             return self.position_eval(self)
         elif maximizing is True:
@@ -250,8 +251,8 @@ class Engine:
                 alpha = self.max_eval(alpha, moves_list[i][1])
                 if self.is_worse_or_equal_eval(beta, alpha):
                     break
-            '''The engine only updates the list of best move when a depth level is completed. The only exception is if 
-            it didn't finish the first depth level: it means it is very low on time and it uses what it has'''
+            """The engine only updates the list of best move when a depth level is completed. The only exception is if 
+            it didn't finish the first depth level: it means it is very low on time and it uses what it has"""
             if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time or depth == 1:
                 moves_list = self.sort_moves(moves_list)
                 best_eval = moves_list[0][1]
