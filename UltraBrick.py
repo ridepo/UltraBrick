@@ -203,7 +203,6 @@ class Engine:
     def minmax_root(self, move_time, white_time, black_time):
         self.start_time = time.perf_counter_ns()
         self.nodes = 0
-        alpha = ["inf", -1]
         beta = ["inf", 1]
         best_eval = ["mate", -1]
         depth = 1
@@ -240,6 +239,7 @@ class Engine:
         # Iterate search at increasing depth until time runs out.
         while self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
             # TODO: does alpha need to be reset here? And what about beta?
+            alpha = ["inf", -1]
             for i in range(len(moves_list)):
                 if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
                     self.board.push(moves_list[i][0])
