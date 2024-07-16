@@ -69,7 +69,8 @@ class Engine:
     def is_better_eval(eval_1, eval_2):  # Returns True is the first eval is better, False otherwise.
 
         """ Special case 1: if both evaluations are expressed in centipawns, return True if the first one is higher,
-        false otherwise. """
+        false otherwise.
+        """
         if eval_1[0] == "cp" == eval_2[0]:
             if eval_1[1] > eval_2[1]:
                 return True
@@ -88,14 +89,15 @@ class Engine:
         negative_mates_list = []
         negative_infinites_list = []
 
-        """ There are 5 kinds of evaluations, from better (for the maximising algorythm) to worse: 
+        """ There are 5 kinds of evaluations, from better (for the maximising engine) to worse: 
         1. Positive infinities (used only as a worst case while minimising). 
         2. Positive mates (expressed in moves, not in plies), which mean that the engine is winning. Lover scores are 
         better (mating in 1 is better than mating in 2). 
         3. Centipawns. Higher is better (the engine has more pieces or they are in a better position). 
         4. Negative mates (expressed in moves, not in plies), which mean that the engine is losing. Lover scores are 
         better (getting mated in -2 moves is better than getting mated in -1). 
-        5. Negative infinities (used only as a worst case while maximising)."""
+        5. Negative infinities (used only as a worst case while maximising).
+        """
         for e in e_list:
             if e[0] == "inf" and e[1] > 0:
                 positive_infinites_list.append(e)
@@ -201,6 +203,7 @@ class Engine:
     def minmax_root(self, move_time, white_time, black_time):
         self.start_time = time.perf_counter_ns()
         self.nodes = 0
+        alpha = ["inf", -1]
         beta = ["inf", 1]
         best_eval = ["mate", -1]
         depth = 1
@@ -236,7 +239,7 @@ class Engine:
 
         # Iterate search at increasing depth until time runs out.
         while self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
-            alpha = ["inf", -1]
+            # TODO: does alpha need to be reset here? And what about beta?
             for i in range(len(moves_list)):
                 if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
                     self.board.push(moves_list[i][0])
@@ -251,8 +254,9 @@ class Engine:
                 alpha = self.max_eval(alpha, moves_list[i][1])
                 if self.is_worse_or_equal_eval(beta, alpha):
                     break
-            """The engine only updates the list of best move when a depth level is completed. The only exception is if 
-            it didn't finish the first depth level: it means it is very low on time and it uses what it has"""
+            """ The engine only updates the list of best move when a depth level is completed. The only exception is if 
+            it didn't finish the first depth level: it means it is very low on time and it uses what it has.
+            """
             if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time or depth == 1:
                 moves_list = self.sort_moves(moves_list)
                 best_eval = moves_list[0][1]
