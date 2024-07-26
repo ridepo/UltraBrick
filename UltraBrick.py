@@ -146,7 +146,7 @@ class Engine:
             self.nodes += 1
             return self.position_eval(self)
         elif maximizing is True:
-            max_eval = ["mate", -1]
+            max_eval = ["inf", -1]
             for eval_move in self.board.legal_moves:
                 self.board.push(eval_move)
                 temp_eval = self.minmax(False, depth - 1, alpha, beta)
@@ -163,7 +163,7 @@ class Engine:
             self.nodes += 1
             return max_eval
         else:
-            min_eval = ["mate", 1]
+            min_eval = ["inf", 1]
             for eval_move in self.board.legal_moves:
                 self.board.push(eval_move)
                 temp_eval = self.minmax(True, depth - 1, alpha, beta)
@@ -203,7 +203,7 @@ class Engine:
     def minmax_root(self, move_time, white_time, black_time):
         self.start_time = time.perf_counter_ns()
         self.nodes = 0
-        best_eval = ["mate", -1]
+        best_eval = ["inf", -1]
         depth = 1
 
         if self.board.legal_moves.count() == 0:
