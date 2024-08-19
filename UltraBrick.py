@@ -23,7 +23,6 @@ class Engine:
         self.name = "UltraBrick"
         self.author = "Riccardo De Ponti"
         self.board = chess.Board()
-        self.central_squares = [chess.E4, chess.E5, chess.D4, chess.D5]
         self.player = chess.WHITE
         self.nodes = 0
         self.start_time = 0
@@ -41,25 +40,25 @@ class Engine:
                 return ["mate", -1]
             else:
                 return ["mate", 1]
-
+        central_squares = [chess.E4, chess.E5, chess.D4, chess.D5]
         value = 0
         color = self.player
         value = value + len(self.board.pieces(chess.PAWN, color)) * 100
-        value = value + len(self.board.pieces(chess.KNIGHT, color)) * 290
-        value = value + len(self.board.pieces(chess.BISHOP, color)) * 300
+        value = value + len(self.board.pieces(chess.KNIGHT, color)) * 320
+        value = value + len(self.board.pieces(chess.BISHOP, color)) * 330
         value = value + len(self.board.pieces(chess.ROOK, color)) * 500
         value = value + len(self.board.pieces(chess.QUEEN, color)) * 900
-        for square in self.central_squares:
+        for square in central_squares:
             if self.board.is_attacked_by(color, square):
                 value += 1
 
         color = not self.player
         value = value - len(self.board.pieces(chess.PAWN, color)) * 100
-        value = value - len(self.board.pieces(chess.KNIGHT, color)) * 290
-        value = value - len(self.board.pieces(chess.BISHOP, color)) * 300
+        value = value - len(self.board.pieces(chess.KNIGHT, color)) * 320
+        value = value - len(self.board.pieces(chess.BISHOP, color)) * 330
         value = value - len(self.board.pieces(chess.ROOK, color)) * 500
         value = value - len(self.board.pieces(chess.QUEEN, color)) * 900
-        for square in self.central_squares:
+        for square in central_squares:
             if self.board.is_attacked_by(color, square):
                 value -= 1
 
