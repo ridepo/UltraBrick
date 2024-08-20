@@ -136,12 +136,20 @@ class Engine:
     def is_worse_or_equal_eval(self, eval_1, eval_2):
         return not self.is_better_eval(eval_1, eval_2)
 
+    def print_info(self, depth, best_eval, moves_list):
+        print(f"info depth {depth} nodes {self.nodes} "
+              f"nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} "
+              f"score {best_eval[0]} {best_eval[1]} pv {moves_list[0][0]}",
+              flush=True)
+
     """ I use time.perf_counter_ns() instead of time.time_ns() because in some environments time.time_ns() does not 
     update reliably, and the program crashes with "divide by zero" while calculating 
     ((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time)). 
     """
+
     def minmax(self, maximizing, depth, alpha, beta):
-        if depth == 1 or self.board.legal_moves.count() == 0 or (self.stop_time != 0 and time.perf_counter_ns() >= self.stop_time):
+        if depth == 1 or self.board.legal_moves.count() == 0 or (
+                self.stop_time != 0 and time.perf_counter_ns() >= self.stop_time):
             self.nodes += 1
             return self.position_eval(self)
         elif maximizing is True:
@@ -246,8 +254,8 @@ class Engine:
                     self.board.pop()
                     if moves_list[i][1] == ["mate", 1]:
                         self.nodes += 1
-                        print(f"info depth {depth} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {moves_list[i][1][0]} {moves_list[i][1][1]} pv {moves_list[i][0]}", flush=True)
-                        print(f"info score {moves_list[i][1][0]} {moves_list[i][1][1]}  depth {depth}", flush=True)
+                        self.print_info(depth, best_eval, moves_list)
+                        print(f"info score {moves_list[i][1][0]} {moves_list[i][1][1]} depth {depth}", flush=True)
                         return moves_list[i][0]
                 alpha = self.max_eval(alpha, moves_list[i][1])
                 if self.is_worse_or_equal_eval(beta, alpha):
@@ -258,10 +266,10 @@ class Engine:
             if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time or depth == 1:
                 moves_list = self.sort_moves(moves_list)
                 best_eval = moves_list[0][1]
-                print(f"info depth {depth} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {best_eval[0]} {best_eval[1]} pv {moves_list[0][0]}", flush=True)
+                self.print_info(depth, best_eval, moves_list)
                 depth += 1
         self.nodes += 1
-        print(f"info depth {depth - 1} nodes {self.nodes} nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} score {best_eval[0]} {best_eval[1]} pv {moves_list[0][0]}", flush=True)
+        self.print_info(depth - 1, best_eval, moves_list)
         print(f"info score {best_eval[0]} {best_eval[1]} depth {depth - 1}", flush=True)
         return moves_list[0][0]
 
