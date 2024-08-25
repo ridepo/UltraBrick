@@ -235,12 +235,12 @@ class Engine:
             if white_time == 0:
                 self.stop_time = 0
             else:
-                self.stop_time = self.start_time + white_time * 66666
+                self.stop_time = self.start_time + white_time * 50000
         else:
             if black_time == 0:
                 self.stop_time = 0
             else:
-                self.stop_time = self.start_time + black_time * 66666
+                self.stop_time = self.start_time + black_time * 50000
 
         # Iterate search at increasing depth until time runs out.
         while self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
@@ -260,7 +260,7 @@ class Engine:
                 alpha = self.max_eval(alpha, moves_list[i][1])
                 if self.is_worse_or_equal_eval(beta, alpha):
                     break
-            """ The engine only updates the list of best move when a depth level is completed. The only exception is if 
+            """ The engine only sorts the moves list when a depth level is completed. The only exception is if 
             it didn't finish the first depth level: it means it is very low on time and it uses what it has.
             """
             if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time or depth == 1:
