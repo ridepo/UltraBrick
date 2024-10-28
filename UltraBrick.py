@@ -34,6 +34,10 @@ class Engine:
 
     @staticmethod
     def init_tables():
+        """I'm using python-chess board representation, which goes from row A to row H, while PeSTO
+        goes from H to A. Since values for black are mirrored, it means thant I'm using these values as black
+        values
+        """
         middlegame_pawn_table = (
             0, 0, 0, 0, 0, 0, 0, 0,
             98, 134, 61, 95, 68, 126, 34, -11,
@@ -205,22 +209,26 @@ class Engine:
         def flip_table(table):
             flip_temp_table = list(table)
             for i in range(len(table)):
-                flip_temp_table[i] = table[i ^ 56]
+                flip_temp_table[i] = table[i ^ 56]  # Tnx mucco
             return tuple(flip_temp_table)
 
         middlegame_tables = ()
         endgame_tables = ()
         for piece in ("p", "n", "b", "r", "q", "k"):
             temp_table = []
+            """I'm using python-chess board representation, where chess.WHITE equals True, 
+            and chess.BLACK equal False. So black is [0] and white is [1].
+            """
             for square in chess.SQUARES:
                 temp_table.append(middlegame_values[piece] + middlegame_pesto_tables[piece][square])
-            middlegame_tables = middlegame_tables + (tuple(flip_table(temp_table)),)
             middlegame_tables = middlegame_tables + (tuple(temp_table),)
+            middlegame_tables = middlegame_tables + (tuple(flip_table(temp_table)),)
             temp_table = []
             for square in chess.SQUARES:
                 temp_table.append(endgame_values[piece] + endgame_pesto_tables[piece][square])
-            endgame_tables = endgame_tables + (tuple(flip_table(temp_table)),)
             endgame_tables = endgame_tables + (tuple(temp_table),)
+            endgame_tables = endgame_tables + (tuple(flip_table(temp_table)),)
+
         return middlegame_tables, endgame_tables
 
     @staticmethod
@@ -240,10 +248,10 @@ class Engine:
 
         for piece_type in chess.PIECE_TYPES:
             for color in chess.COLORS:
-                piece_index = (2 * piece_type - color) - 1
+                piece_index = (2 * (piece_type - 1) + color)
                 for square in self.board.pieces(piece_type, color):
-                    middlegame[not color] += self.middlegame_tables[piece_index][square]
-                    endgame[not color] += self.endgame_tables[piece_index][square]
+                    middlegame[color] += self.middlegame_tables[piece_index][square]
+                    endgame[color] += self.endgame_tables[piece_index][square]
                     game_phase += game_phase_values[piece_index]
 
         middlegame_score = middlegame[chess.WHITE] - middlegame[chess.BLACK]
@@ -253,7 +261,7 @@ class Engine:
         endgame_phase = 24 - middlegame_phase
         value = (middlegame_score * middlegame_phase + endgame_score * endgame_phase) / 24
 
-        if self.player == chess.WHITE:
+        if self.player == chess.BLACK:
             value = - value
 
         return ["cp", int(value)]
