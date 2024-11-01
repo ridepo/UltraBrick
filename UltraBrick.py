@@ -248,8 +248,8 @@ class Engine:
 
         for piece_type in chess.PIECE_TYPES:
             for color in chess.COLORS:
-                piece_index = (2 * (piece_type - 1) + color)
                 for square in self.board.pieces(piece_type, color):
+                    piece_index = (2 * (piece_type - 1) + color)
                     middlegame[color] += self.middlegame_tables[piece_index][square]
                     endgame[color] += self.endgame_tables[piece_index][square]
                     game_phase += game_phase_values[piece_index]
