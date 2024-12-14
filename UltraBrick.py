@@ -35,13 +35,13 @@ class Engine:
 
     @staticmethod
     def position_eval(self):
-        if self.board.is_stalemate():  # TODO or self.board.can_claim_draw():
-            return ["cp", 0]
+        if self.board.is_stalemate():
+            return [0, 0]
         if self.board.is_checkmate():
             if self.board.turn is self.player:
-                return ["mate", -1]
+                return [-1, 1]
             else:
-                return ["mate", 1]
+                return [1, -1]
 
         middlegame = [0, 0]
         endgame = [0, 0]
@@ -66,61 +66,28 @@ class Engine:
         if self.player == chess.BLACK:
             value = - value
 
-        return ["cp", int(value)]
+        return [0, int(value)]
+
+    @staticmethod
+    def format_eval(evaluation):
+        if evaluation[0] == -2:
+            return "inf -1"
+        elif evaluation[0] == -1:
+            return "mate " + str(-evaluation[1])
+        elif evaluation[0] == 0:
+            return "cp " + str(evaluation[1])
+        elif evaluation[0] == 1:
+            return "mate " + str(-evaluation[1])
+        elif evaluation[0] == 2:
+            return "inf 1"
+        else:
+            print(f"impossible evaluation {evaluation}")
 
     @staticmethod
     def is_better_eval(eval_1, eval_2):  # Returns True is the first eval is better, False otherwise.
-
-        """ Special case 1: if both evaluations are expressed in centipawns, return True if the first one is higher,
-        false otherwise.
-        """
-        if eval_1[0] == "cp" == eval_2[0]:
-            if eval_1[1] > eval_2[1]:
-                return True
-            else:
-                return False
-
-        """ Special case 2: if the evaluations are identical, return False.
-        """
-        if eval_1 == eval_2:
-            return False
-
-        e_list = [eval_1, eval_2]
-        positive_infinites_list = []
-        positive_mates_list = []
-        cp_list = []
-        negative_mates_list = []
-        negative_infinites_list = []
-
-        """ There are 5 kinds of evaluations, from best (for the maximising engine) to worst: 
-        1. Positive infinities (used only as worst case while minimising). 
-        2. Positive mates (expressed in moves, not plies), which mean that the engine is winning. Lower scores are 
-        better (mating in 1 is better than mating in 2). 
-        3. Centipawns. Higher is better (the engine has more pieces or they are in a better position). 
-        4. Negative mates (expressed in moves, not in plies), which mean that the engine is losing. Lower scores are 
-        better (getting mated in -2 moves is better than getting mated in -1). 
-        5. Negative infinities (used only as worst case while maximising).
-        """
-        for e in e_list:
-            if e[0] == "inf" and e[1] > 0:
-                positive_infinites_list.append(e)
-            if e[0] == "mate" and e[1] > 0:
-                positive_mates_list.append(e)
-            if e[0] == "cp":
-                cp_list.append(e)
-            if e[0] == "mate" and e[1] < 0:
-                negative_mates_list.append(e)
-            if e[0] == "inf" and e[1] < 0:
-                negative_infinites_list.append(e)
-
-        # There is no need to sort positive infinities because we only use ["inf", 1].
-        positive_mates_list.sort(reverse=False, key=lambda x: x[1])
-        cp_list.sort(reverse=True, key=lambda x: x[1])
-        negative_mates_list.sort(reverse=False, key=lambda x: x[1])
-        # There is no need to sort negative infinities because we only use ["inf", -1].
-
-        e_list = positive_infinites_list + positive_mates_list + cp_list + negative_mates_list + negative_infinites_list
-        if eval_1 == e_list[0]:
+        if eval_1[0] > eval_2[0]:
+            return True
+        elif eval_1[0] == eval_2[0] and eval_1[1] > eval_2[1]:
             return True
         else:
             return False
@@ -140,10 +107,10 @@ class Engine:
     def is_worse_or_equal_eval(self, eval_1, eval_2):
         return not self.is_better_eval(eval_1, eval_2)
 
-    def print_info(self, depth, best_eval, moves_list):
+    def print_info(self, depth, best_eval, best_move):
         print(f"info depth {depth} nodes {self.nodes} "
               f"nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} "
-              f"score {best_eval[0]} {best_eval[1]} pv {moves_list[0][0]}",
+              f"score {self.format_eval(best_eval)} pv {best_move}",
               flush=True)
 
     """ I use time.perf_counter_ns() instead of time.time_ns() because in some environments time.time_ns() does not 
@@ -157,64 +124,48 @@ class Engine:
             self.nodes += 1
             return self.position_eval(self)
         elif maximizing is True:
-            max_eval = ["inf", -1]
+            max_eval = [-2, 0]
             for eval_move in self.board.legal_moves:
                 self.board.push(eval_move)
                 temp_eval = self.minmax(False, depth - 1, alpha, beta)
                 self.board.pop()
-                if temp_eval == ["mate", 1]:
+                if temp_eval == [1, -1]:  # we found mate in 1
                     self.nodes += 1
                     return temp_eval
                 max_eval = self.max_eval(max_eval, temp_eval)
                 alpha = self.max_eval(alpha, max_eval)
                 if self.is_worse_or_equal_eval(beta, alpha):
                     break
-            if max_eval[0] == "mate" and max_eval[1] < 0:
-                max_eval[1] -= 1
+            if max_eval[0] == -1:
+                max_eval[1] += 1
             self.nodes += 1
             return max_eval
         else:
-            min_eval = ["inf", 1]
+            min_eval = [2, 0]
             for eval_move in self.board.legal_moves:
                 self.board.push(eval_move)
                 temp_eval = self.minmax(True, depth - 1, alpha, beta)
                 self.board.pop()
-                if temp_eval == ["mate", -1]:
+                if temp_eval == [-1, 1]:  # we found mate in -1
                     self.nodes += 1
                     return temp_eval
                 min_eval = self.min_eval(min_eval, temp_eval)
                 beta = self.min_eval(beta, min_eval)
                 if self.is_worse_or_equal_eval(beta, alpha):
                     break
-            if min_eval[0] == "mate" and min_eval[1] > 0:
-                min_eval[1] += 1
+            if min_eval[0] == 1:
+                min_eval[1] -= 1
             self.nodes += 1
             return min_eval
 
     @staticmethod
     def sort_moves(m_list):
-        cp_list = []
-        positive_mates_list = []
-        negative_mates_list = []
-
-        for m in m_list:
-            if m[1][0] == "cp":
-                cp_list.append(m)
-            if m[1][0] == "mate" and m[1][1] > 0:
-                positive_mates_list.append(m)
-            if m[1][0] == "mate" and m[1][1] < 0:
-                negative_mates_list.append(m)
-
-        positive_mates_list.sort(reverse=False, key=lambda x: x[1][1])
-        cp_list.sort(reverse=True, key=lambda x: x[1][1])
-        negative_mates_list.sort(reverse=False, key=lambda x: x[1][1])
-
-        return positive_mates_list + cp_list + negative_mates_list
+        return sorted(m_list, reverse=True, key=lambda x: (x[1][0], x[1][1]))
 
     def minmax_root(self, move_time, white_time, black_time):
         self.start_time = time.perf_counter_ns()
         self.nodes = 0
-        best_eval = ["inf", -1]
+        best_eval = [-2, 0]
         depth = 1
 
         if self.board.legal_moves.count() == 0:
@@ -230,7 +181,7 @@ class Engine:
         # Populate a list of list with legal moves and temporary evaluations
         moves_list = []
         for append_move in self.board.legal_moves:
-            moves_list.append([append_move, ["cp", 0]])
+            moves_list.append([append_move, [0, 0]])
 
         # Set stop time for search
         if move_time != 0:
@@ -248,18 +199,20 @@ class Engine:
 
         # Iterate search at increasing depth until time runs out.
         while self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
-            alpha = ["inf", -1]
-            beta = ["inf", 1]
+            alpha = [-2, 0]
+            beta = [2, 0]
             for i in range(len(moves_list)):
                 if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
                     self.board.push(moves_list[i][0])
                     print(f"info depth {depth} currmove {moves_list[i][0]} currmovenumber {i + 1}")
                     moves_list[i][1] = self.minmax(False, depth, alpha, beta)
                     self.board.pop()
-                    if moves_list[i][1] == ["mate", 1]:
+                    if moves_list[i][1] == [1, -1]:
+                        best_eval = moves_list[i][1]
+                        best_move = moves_list[i][0]
                         self.nodes += 1
-                        self.print_info(depth, best_eval, moves_list)
-                        print(f"info score {moves_list[i][1][0]} {moves_list[i][1][1]} depth {depth}", flush=True)
+                        self.print_info(depth, best_eval, best_move)
+                        print(f"info score {self.format_eval(best_eval)} depth {depth}", flush=True)
                         return moves_list[i][0]
                 alpha = self.max_eval(alpha, moves_list[i][1])
                 if self.is_worse_or_equal_eval(beta, alpha):
@@ -270,11 +223,12 @@ class Engine:
             if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time or depth == 1:
                 moves_list = self.sort_moves(moves_list)
                 best_eval = moves_list[0][1]
-                self.print_info(depth, best_eval, moves_list)
+                best_move = moves_list[0][0]
+                self.print_info(depth, best_eval, best_move)
                 depth += 1
         self.nodes += 1
-        self.print_info(depth - 1, best_eval, moves_list)
-        print(f"info score {best_eval[0]} {best_eval[1]} depth {depth - 1}", flush=True)
+        self.print_info(depth - 1, best_eval, moves_list[0][0])
+        print(f"info score {self.format_eval(best_eval)} depth {depth - 1}", flush=True)
         return moves_list[0][0]
 
 
