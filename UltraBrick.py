@@ -28,6 +28,7 @@ class Engine:
         self.nodes = 0
         self.start_time = 0
         self.stop_time = 0
+        self.max_search_time = 30000 # 30000 ms
         self.middlegame_tables, self.endgame_tables = PeSTO.init_tables()
 
     def set_fen(self, fen_string):
@@ -184,6 +185,8 @@ class Engine:
             moves_list.append([append_move, [0, 0]])
 
         # Set stop time for search
+        # UCI uses milliseconds
+        # We are using nanoseconds (1 ns = 1/1.000.000.000 s = 1/1.000.000 ms)
         if move_time != 0:
             self.stop_time = self.start_time + move_time * 980000
         elif self.board.turn == chess.WHITE:
@@ -191,11 +194,15 @@ class Engine:
                 self.stop_time = 0
             else:
                 self.stop_time = self.start_time + white_time * 50000
+                self.stop_time = min(self.stop_time, self.start_time + self.max_search_time * 1000000)
         else:
             if black_time == 0:
                 self.stop_time = 0
             else:
                 self.stop_time = self.start_time + black_time * 50000
+                self.stop_time = min(self.stop_time, self.start_time + self.max_search_time * 1000000)
+        if len(moves_list) == 1:
+            self.stop_time = min(self.stop_time, self.start_time + 2000000000)
 
         # Iterate search at increasing depth until time runs out.
         while self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
