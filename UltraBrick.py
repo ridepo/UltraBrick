@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) <2024>  <Riccardo De Ponti>
+# Copyright (C) <2024-2025>  <Riccardo De Ponti>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -120,8 +120,7 @@ class Engine:
     """
 
     def minmax(self, maximizing, depth, alpha, beta):
-        if depth == 1 or self.board.legal_moves.count() == 0 or (
-                self.stop_time != 0 and time.perf_counter_ns() >= self.stop_time):
+        if depth == 1 or self.board.legal_moves.count() == 0 or not self.is_running():
             self.nodes += 1
             return self.position_eval(self)
         elif maximizing is True:
@@ -162,6 +161,12 @@ class Engine:
     @staticmethod
     def sort_moves(m_list):
         return sorted(m_list, reverse=True, key=lambda x: (x[1][0], x[1][1]))
+
+    def is_running(self):
+        if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
+            return True
+        else:
+            return False
 
     def minmax_root(self, move_time, white_time, black_time):
         self.start_time = time.perf_counter_ns()
@@ -205,11 +210,11 @@ class Engine:
             self.stop_time = min(self.stop_time, self.start_time + 2000000000)
 
         # Iterate search at increasing depth until time runs out.
-        while self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
+        while self.is_running():
             alpha = [-2, 0]
             beta = [2, 0]
             for i in range(len(moves_list)):
-                if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
+                if self.is_running():
                     self.board.push(moves_list[i][0])
                     print(f"info depth {depth} currmove {moves_list[i][0]} currmovenumber {i + 1}")
                     moves_list[i][1] = self.minmax(False, depth, alpha, beta)
@@ -227,7 +232,7 @@ class Engine:
             """ The engine only sorts the moves list when a depth level is completed. The only exception is if 
             it didn't finish the first depth level: it means it is very low on time and it uses what it has.
             """
-            if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time or depth == 1:
+            if self.is_running() or depth == 1:
                 moves_list = self.sort_moves(moves_list)
                 best_eval = moves_list[0][1]
                 best_move = moves_list[0][0]
