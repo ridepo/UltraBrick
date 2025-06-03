@@ -7,7 +7,7 @@ def flip_table(table):
 
 def init_tables():
     """I'm using python-chess board representation, which goes from row A to row H, while PeSTO
-    goes from H to A. Since values for black are mirrored, it means thant I'm using these values as black
+    goes from H to A. Since values for black are mirrored, I'm using these values as black values.
     values
     """
     middlegame_pawn_table = (
