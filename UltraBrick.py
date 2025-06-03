@@ -120,7 +120,7 @@ class Engine:
     """
 
     def minmax(self, maximizing, depth, alpha, beta):
-        if depth == 1 or self.board.legal_moves.count() == 0 or not self.is_running():
+        if depth == 0 or self.board.legal_moves.count() == 0 or not self.is_running():
             self.nodes += 1
             return self.position_eval(self)
         elif maximizing is True:
@@ -129,7 +129,7 @@ class Engine:
                 self.board.push(eval_move)
                 temp_eval = self.minmax(False, depth - 1, alpha, beta)
                 self.board.pop()
-                if temp_eval == [1, -1]:  # we found mate in 1
+                if temp_eval == [1, -((depth+1)//2)]:  # we found the shortest mate
                     self.nodes += 1
                     return temp_eval
                 max_eval = self.max_eval(max_eval, temp_eval)
@@ -146,7 +146,7 @@ class Engine:
                 self.board.push(eval_move)
                 temp_eval = self.minmax(True, depth - 1, alpha, beta)
                 self.board.pop()
-                if temp_eval == [-1, 1]:  # we found mate in -1
+                if temp_eval == [-1, (depth+1)//2]:  # we found the fastest mate
                     self.nodes += 1
                     return temp_eval
                 min_eval = self.min_eval(min_eval, temp_eval)
@@ -217,9 +217,9 @@ class Engine:
                 if self.is_running():
                     self.board.push(moves_list[i][0])
                     print(f"info depth {depth} currmove {moves_list[i][0]} currmovenumber {i + 1}")
-                    moves_list[i][1] = self.minmax(False, depth, alpha, beta)
+                    moves_list[i][1] = self.minmax(False, depth -1, alpha, beta)
                     self.board.pop()
-                    if moves_list[i][1] == [1, -1]:
+                    if moves_list[i][1] == [1, -((depth+1)//2)]: # we found the shortest mate
                         best_eval = moves_list[i][1]
                         best_move = moves_list[i][0]
                         self.nodes += 1
