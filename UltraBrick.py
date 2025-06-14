@@ -13,7 +13,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+import copy
 import time
 import chess
 import PeSTO
@@ -28,7 +28,6 @@ class Engine:
         self.nodes = 0
         self.start_time = 0
         self.stop_time = 0
-        self.max_search_time = 30000 # 30000 ms
         self.middlegame_tables, self.endgame_tables = PeSTO.init_tables()
 
     def set_fen(self, fen_string):
@@ -120,7 +119,7 @@ class Engine:
     """
 
     def minmax(self, maximizing, depth, alpha, beta):
-        if depth == 0 or self.board.legal_moves.count() == 0 or not self.is_running():
+        if depth == 0 or self.board.legal_moves.count() == 0:
             self.nodes += 1
             return self.position_eval(self)
         elif maximizing is True:
@@ -193,19 +192,17 @@ class Engine:
         # UCI uses milliseconds
         # We are using nanoseconds (1 ns = 1/1.000.000.000 s = 1/1.000.000 ms)
         if move_time != 0:
-            self.stop_time = self.start_time + move_time * 980000
+            self.stop_time = self.start_time + move_time * 950000
         elif self.board.turn == chess.WHITE:
             if white_time == 0:
                 self.stop_time = 0
             else:
-                self.stop_time = self.start_time + white_time * 50000
-                self.stop_time = min(self.stop_time, self.start_time + self.max_search_time * 1000000)
+                self.stop_time = self.start_time + white_time * 45000
         else:
             if black_time == 0:
                 self.stop_time = 0
             else:
-                self.stop_time = self.start_time + black_time * 50000
-                self.stop_time = min(self.stop_time, self.start_time + self.max_search_time * 1000000)
+                self.stop_time = self.start_time + black_time * 45000
         if len(moves_list) == 1:
             self.stop_time = min(self.stop_time, self.start_time + 2000000000)
 
@@ -213,36 +210,39 @@ class Engine:
         while self.is_running():
             alpha = [-2, 0]
             beta = [2, 0]
+            # A list of moves evaluated
+            evaluated_moves_list = []
             for i in range(len(moves_list)):
-                if self.is_running():
-                    self.board.push(moves_list[i][0])
-                    print(f"info depth {depth} currmove {moves_list[i][0]} currmovenumber {i + 1}")
-                    moves_list[i][1] = self.minmax(False, depth -1, alpha, beta)
-                    self.board.pop()
-                    if moves_list[i][1] == [1, -((depth+1)//2)]: # we found the shortest mate
-                        best_eval = moves_list[i][1]
-                        best_move = moves_list[i][0]
-                        self.nodes += 1
-                        self.print_info(depth, best_eval, best_move)
-                        print(f"info score {self.format_eval(best_eval)} depth {depth}", flush=True)
-                        return moves_list[i][0]
-                alpha = self.max_eval(alpha, moves_list[i][1])
+                if not self.is_running():
+                    break
+                self.board.push(moves_list[i][0])
+                print(f"info depth {depth} currmove {moves_list[i][0]} currmovenumber {i + 1}")
+                evaluated_moves_list.append([moves_list[i][0], self.minmax(False, depth -1, alpha, beta)])
+                self.board.pop()
+                if evaluated_moves_list[i][1] == [1, -((depth+1)//2)]: # we found the shortest mate
+                    best_eval = evaluated_moves_list[i][1]
+                    best_move = evaluated_moves_list[i][0]
+                    self.nodes += 1
+                    self.print_info(depth, best_eval, best_move)
+                    print(f"info score {self.format_eval(best_eval)} depth {depth-1}", flush=True)
+                    return best_move
+                alpha = self.max_eval(alpha, evaluated_moves_list[i][1])
                 if self.is_worse_or_equal_eval(beta, alpha):
                     break
-            """ The engine only sorts the moves list when a depth level is completed. The only exception is if 
-            it didn't finish the first depth level: it means it is very low on time and it uses what it has.
-            """
-            if self.is_running() or depth == 1:
-                moves_list = self.sort_moves(moves_list)
-                best_eval = moves_list[0][1]
-                best_move = moves_list[0][0]
-                self.print_info(depth, best_eval, best_move)
-                depth += 1
-        self.nodes += 1
-        self.print_info(depth - 1, best_eval, moves_list[0][0])
-        print(f"info score {self.format_eval(best_eval)} depth {depth - 1}", flush=True)
-        return moves_list[0][0]
+            # print ("info we copy the list")
+            moves_list = copy.deepcopy(evaluated_moves_list)
 
+            """ We sort the moves list
+            """
+            # print (f"info we sort the list, list length ={len(moves_list)} ")
+            moves_list = self.sort_moves(moves_list)
+            best_eval = moves_list[0][1]
+            best_move = moves_list[0][0]
+            self.print_info(depth, best_eval, best_move)
+            depth += 1
+        self.nodes += 1
+        print(f"info score {self.format_eval(best_eval)} depth {depth-1}", flush=True)
+        return moves_list[0][0]
 
 engine = Engine()
 
