@@ -19,6 +19,47 @@ import chess
 import PeSTO
 
 
+def format_eval(evaluation):
+    if evaluation[0] == -2:
+        return "inf -1"
+    elif evaluation[0] == -1:
+        return "mate " + str(-evaluation[1])
+    elif evaluation[0] == 0:
+        return "cp " + str(evaluation[1])
+    elif evaluation[0] == 1:
+        return "mate " + str(-evaluation[1])
+    elif evaluation[0] == 2:
+        return "inf 1"
+    else:
+        print(f"impossible evaluation {evaluation}")
+
+
+def is_better_eval(eval_1, eval_2):  # Returns True is the first eval is better, False otherwise.
+    if eval_1[0] > eval_2[0]:
+        return True
+    elif eval_1[0] == eval_2[0] and eval_1[1] > eval_2[1]:
+        return True
+    else:
+        return False
+
+def max_eval(eval_1, eval_2):
+    if is_better_eval(eval_1, eval_2):
+        return eval_1
+    else:
+        return eval_2
+
+def min_eval(eval_1, eval_2):
+    if is_better_eval(eval_1, eval_2):
+        return eval_2
+    else:
+        return eval_1
+
+def is_worse_or_equal_eval(eval_1, eval_2):
+    return not is_better_eval(eval_1, eval_2)
+
+def sort_moves(m_list):
+    return sorted(m_list, reverse=True, key=lambda x: (x[1][0], x[1][1]))
+
 class Engine:
     def __init__(self):
         self.name = "UltraBrick"
@@ -68,49 +109,10 @@ class Engine:
 
         return [0, int(value)]
 
-    @staticmethod
-    def format_eval(evaluation):
-        if evaluation[0] == -2:
-            return "inf -1"
-        elif evaluation[0] == -1:
-            return "mate " + str(-evaluation[1])
-        elif evaluation[0] == 0:
-            return "cp " + str(evaluation[1])
-        elif evaluation[0] == 1:
-            return "mate " + str(-evaluation[1])
-        elif evaluation[0] == 2:
-            return "inf 1"
-        else:
-            print(f"impossible evaluation {evaluation}")
-
-    @staticmethod
-    def is_better_eval(eval_1, eval_2):  # Returns True is the first eval is better, False otherwise.
-        if eval_1[0] > eval_2[0]:
-            return True
-        elif eval_1[0] == eval_2[0] and eval_1[1] > eval_2[1]:
-            return True
-        else:
-            return False
-
-    def max_eval(self, eval_1, eval_2):
-        if self.is_better_eval(eval_1, eval_2):
-            return eval_1
-        else:
-            return eval_2
-
-    def min_eval(self, eval_1, eval_2):
-        if self.is_better_eval(eval_1, eval_2):
-            return eval_2
-        else:
-            return eval_1
-
-    def is_worse_or_equal_eval(self, eval_1, eval_2):
-        return not self.is_better_eval(eval_1, eval_2)
-
     def print_info(self, depth, best_eval, best_move):
         print(f"info depth {depth} nodes {self.nodes} "
               f"nps {int((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time))} "
-              f"score {self.format_eval(best_eval)} pv {best_move}",
+              f"score {format_eval(best_eval)} pv {best_move}",
               flush=True)
 
     """ I use time.perf_counter_ns() instead of time.time_ns() because in some environments time.time_ns() does not 
@@ -123,7 +125,7 @@ class Engine:
             self.nodes += 1
             return self.position_eval(self)
         elif maximizing is True:
-            max_eval = [-2, 0]
+            best_eval = [-2, 0]
             for eval_move in self.board.legal_moves:
                 self.board.push(eval_move)
                 temp_eval = self.minmax(False, depth - 1, alpha, beta)
@@ -131,16 +133,16 @@ class Engine:
                 if temp_eval == [1, -((depth+1)//2)]:  # we found the shortest mate
                     self.nodes += 1
                     return temp_eval
-                max_eval = self.max_eval(max_eval, temp_eval)
-                alpha = self.max_eval(alpha, max_eval)
-                if self.is_worse_or_equal_eval(beta, alpha):
+                best_eval = max_eval(best_eval, temp_eval)
+                alpha = max_eval(alpha, best_eval)
+                if is_worse_or_equal_eval(beta, alpha):
                     break
-            if max_eval[0] == -1:
-                max_eval[1] += 1
+            if best_eval[0] == -1:
+                best_eval[1] += 1
             self.nodes += 1
-            return max_eval
+            return best_eval
         else:
-            min_eval = [2, 0]
+            best_eval = [2, 0]
             for eval_move in self.board.legal_moves:
                 self.board.push(eval_move)
                 temp_eval = self.minmax(True, depth - 1, alpha, beta)
@@ -148,18 +150,15 @@ class Engine:
                 if temp_eval == [-1, (depth+1)//2]:  # we found the fastest mate
                     self.nodes += 1
                     return temp_eval
-                min_eval = self.min_eval(min_eval, temp_eval)
-                beta = self.min_eval(beta, min_eval)
-                if self.is_worse_or_equal_eval(beta, alpha):
+                best_eval = min_eval(best_eval, temp_eval)
+                beta = min_eval(beta, best_eval)
+                if is_worse_or_equal_eval(beta, alpha):
                     break
-            if min_eval[0] == 1:
-                min_eval[1] -= 1
+            if best_eval[0] == 1:
+                best_eval[1] -= 1
             self.nodes += 1
-            return min_eval
+            return best_eval
 
-    @staticmethod
-    def sort_moves(m_list):
-        return sorted(m_list, reverse=True, key=lambda x: (x[1][0], x[1][1]))
 
     def is_running(self):
         if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
@@ -224,10 +223,10 @@ class Engine:
                     best_move = evaluated_moves_list[i][0]
                     self.nodes += 1
                     self.print_info(depth, best_eval, best_move)
-                    print(f"info score {self.format_eval(best_eval)} depth {depth-1}", flush=True)
+                    print(f"info score {format_eval(best_eval)} depth {depth-1}", flush=True)
                     return best_move
-                alpha = self.max_eval(alpha, evaluated_moves_list[i][1])
-                if self.is_worse_or_equal_eval(beta, alpha):
+                alpha = max_eval(alpha, evaluated_moves_list[i][1])
+                if is_worse_or_equal_eval(beta, alpha):
                     break
             # print ("info we copy the list")
             moves_list = copy.deepcopy(evaluated_moves_list)
@@ -235,13 +234,13 @@ class Engine:
             """ We sort the moves list
             """
             # print (f"info we sort the list, list length ={len(moves_list)} ")
-            moves_list = self.sort_moves(moves_list)
+            moves_list = sort_moves(moves_list)
             best_eval = moves_list[0][1]
             best_move = moves_list[0][0]
             self.print_info(depth, best_eval, best_move)
             depth += 1
         self.nodes += 1
-        print(f"info score {self.format_eval(best_eval)} depth {depth-1}", flush=True)
+        print(f"info score {format_eval(best_eval)} depth {depth-1}", flush=True)
         return moves_list[0][0]
 
 engine = Engine()
