@@ -60,6 +60,9 @@ def is_worse_or_equal_eval(eval_1, eval_2):
 def sort_moves(m_list):
     return sorted(m_list, reverse=True, key=lambda x: (x[1][0], x[1][1]))
 
+def negate_eval(evaluation):
+    return [- evaluation[0], - evaluation[1]]
+
 class Engine:
     def __init__(self):
         self.name = "UltraBrick"
@@ -74,15 +77,11 @@ class Engine:
     def set_fen(self, fen_string):
         self.board.set_fen(fen_string)
 
-    @staticmethod
     def position_eval(self):
         if self.board.is_stalemate():
             return [0, 0]
         if self.board.is_checkmate():
-            if self.board.turn is self.player:
                 return [-1, 1]
-            else:
-                return [1, -1]
 
         middlegame = [0, 0]
         endgame = [0, 0]
@@ -104,7 +103,7 @@ class Engine:
         endgame_phase = 24 - middlegame_phase
         value = (middlegame_score * middlegame_phase + endgame_score * endgame_phase) / 24
 
-        if self.player == chess.BLACK:
+        if self.board.turn == chess.BLACK:
             value = - value
 
         return [0, int(value)]
@@ -120,45 +119,26 @@ class Engine:
     ((self.nodes * 1000000000) / (time.perf_counter_ns() - self.start_time)). 
     """
 
-    def minmax(self, maximizing, depth, alpha, beta):
+    def negamax(self, depth, alpha, beta):
         if depth == 0 or self.board.legal_moves.count() == 0:
             self.nodes += 1
-            return self.position_eval(self)
-        elif maximizing is True:
-            best_eval = [-2, 0]
-            for eval_move in self.board.legal_moves:
-                self.board.push(eval_move)
-                temp_eval = self.minmax(False, depth - 1, alpha, beta)
-                self.board.pop()
-                if temp_eval == [1, -((depth+1)//2)]:  # we found the shortest mate
-                    self.nodes += 1
-                    return temp_eval
-                best_eval = max_eval(best_eval, temp_eval)
-                alpha = max_eval(alpha, best_eval)
-                if is_worse_or_equal_eval(beta, alpha):
-                    break
-            if best_eval[0] == -1:
-                best_eval[1] += 1
-            self.nodes += 1
-            return best_eval
-        else:
-            best_eval = [2, 0]
-            for eval_move in self.board.legal_moves:
-                self.board.push(eval_move)
-                temp_eval = self.minmax(True, depth - 1, alpha, beta)
-                self.board.pop()
-                if temp_eval == [-1, (depth+1)//2]:  # we found the fastest mate
-                    self.nodes += 1
-                    return temp_eval
-                best_eval = min_eval(best_eval, temp_eval)
-                beta = min_eval(beta, best_eval)
-                if is_worse_or_equal_eval(beta, alpha):
-                    break
-            if best_eval[0] == 1:
-                best_eval[1] -= 1
-            self.nodes += 1
-            return best_eval
-
+            return self.position_eval()
+        best_eval = [-2, 0]
+        for eval_move in self.board.legal_moves:
+            self.board.push(eval_move)
+            temp_eval = negate_eval(self.negamax(depth - 1, alpha=negate_eval(beta), beta=negate_eval(alpha)))
+            self.board.pop()
+            if temp_eval == [1, -((depth+1)//2)]:  # we found the shortest mate
+                self.nodes += 1
+                return temp_eval
+            best_eval = max_eval(best_eval, temp_eval)
+            alpha = max_eval(alpha, best_eval)
+            if is_worse_or_equal_eval(beta, alpha):
+                break
+        if best_eval[0] == -1:
+            best_eval[1] += 1
+        self.nodes += 1
+        return best_eval
 
     def is_running(self):
         if self.stop_time == 0 or time.perf_counter_ns() < self.stop_time:
@@ -166,7 +146,7 @@ class Engine:
         else:
             return False
 
-    def minmax_root(self, move_time, white_time, black_time):
+    def negamax_root(self, move_time, white_time, black_time):
         self.start_time = time.perf_counter_ns()
         self.nodes = 0
         best_eval = [-2, 0]
@@ -209,14 +189,14 @@ class Engine:
         while self.is_running():
             alpha = [-2, 0]
             beta = [2, 0]
-            # A list of moves evaluated
+            # A list of evaluated moves
             evaluated_moves_list = []
             for i in range(len(moves_list)):
                 if not self.is_running():
                     break
                 self.board.push(moves_list[i][0])
                 print(f"info depth {depth} currmove {moves_list[i][0]} currmovenumber {i + 1}")
-                evaluated_moves_list.append([moves_list[i][0], self.minmax(False, depth -1, alpha, beta)])
+                evaluated_moves_list.append([moves_list[i][0], negate_eval(self.negamax(depth -1, alpha=negate_eval(beta), beta=negate_eval(alpha)))])
                 self.board.pop()
                 if evaluated_moves_list[i][1] == [1, -((depth+1)//2)]: # we found the shortest mate
                     best_eval = evaluated_moves_list[i][1]
@@ -228,12 +208,10 @@ class Engine:
                 alpha = max_eval(alpha, evaluated_moves_list[i][1])
                 if is_worse_or_equal_eval(beta, alpha):
                     break
-            # print ("info we copy the list")
             moves_list = copy.deepcopy(evaluated_moves_list)
 
             """ We sort the moves list
             """
-            # print (f"info we sort the list, list length ={len(moves_list)} ")
             moves_list = sort_moves(moves_list)
             best_eval = moves_list[0][1]
             best_move = moves_list[0][0]
@@ -289,4 +267,4 @@ while True:
                 wtime = int(command[2])
             if command[3] == "btime":
                 btime = int(command[4])
-        print(f"bestmove {engine.minmax_root(movetime, wtime, btime)}")
+        print(f"bestmove {engine.negamax_root(movetime, wtime, btime)}")
